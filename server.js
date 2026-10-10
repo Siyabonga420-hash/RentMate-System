@@ -2277,9 +2277,15 @@ app.get(
 app.use(
     (err, req, res, next) => {
 
-        console.error(
-            err.code || err.message
-        );
+        console.error("RENTMATE API ERROR", {
+    method: req.method,
+    path: req.path,
+    code: err.code,
+    message: err.message,
+    detail: err.detail,
+    table: err.table,
+    column: err.column
+});
 
         const status =
             err.status ||
