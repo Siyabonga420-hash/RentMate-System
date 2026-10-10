@@ -1,6 +1,7 @@
 import 'dotenv/config';
 
 import express from 'express';
+import { registerRentMateSchedulingRoutes } from './rentmate-scheduling.js';
 import pg from 'pg';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -748,6 +749,8 @@ app.get(
 );
 
 // =====================================================
+registerRentMateSchedulingRoutes(app, { authenticate, wrap, ownHousehold, one, q, fail, uuid, managerId, roles, db });
+
 // 14. COMMUNE CHORES
 // =====================================================
 
