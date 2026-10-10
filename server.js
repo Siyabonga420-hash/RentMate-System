@@ -735,7 +735,7 @@ app.get(
         const t = await ownHousehold(req);
 
         const result = await q(
-            `SELECT u.full_name
+            `SELECT t.id AS id, u.full_name
              FROM tenants t
              JOIN users u
                 ON u.id=t.user_id
