@@ -460,6 +460,23 @@ app.post(
 );
 
 // =====================================================
+app.get(
+    '/my/identity',
+    authenticate,
+    wrap(async (req, res) => {
+        if (req.user.role !== 'tenant') {
+            throw fail(403, 'Tenant account required');
+        }
+
+        const t = await tenant(req);
+
+        res.json({
+            tenant_id: t.id,
+            user_id: req.user.id,
+            household_id: t.household_id
+        });
+    })
+);
 // 9. CURRENT USER
 // =====================================================
 
