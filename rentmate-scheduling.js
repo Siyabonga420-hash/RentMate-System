@@ -26,6 +26,19 @@ export function registerRentMateSchedulingRoutes(app, d) {
   };
 
   // Household-wide visibility; only a member of this household can create/read.
+  function requireFutureDate(value, field) {
+    if (value == null || value === '') return;
+
+    const date = new Date(value);
+
+    if (!Number.isFinite(date.getTime())) {
+      throw fail(400, `${field} must be a valid date and time`);
+    }
+
+    if (date.getTime() <= Date.now()) {
+      throw fail(400, `${field} must be in the future`);
+    }
+  }
   app.get('/my/chores', authenticate, wrap(async (req, res) => {
     const t = await ownHousehold(req);
     const result = await q('SELECT * FROM chores WHERE household_id=$1 ORDER BY due_at ASC NULLS LAST, created_at DESC', [t.household_id]);
@@ -36,6 +49,7 @@ export function registerRentMateSchedulingRoutes(app, d) {
     const title = text(req.body.title);
     if (!title) throw fail(400, 'Chore title required (up to 150 characters)');
     const due = timestamp(req.body.due_at, 'due_at');
+    requireFutureDate(due, 'due_at');
     const assignee = await assignedToHousehold(req.body.assigned_tenant_id, t.household_id);
     const mins = reminder(req.body.reminder_minutes);
     const row = await one(`INSERT INTO chores (household_id,title,due_at,assigned_tenant_id,reminder_minutes)
@@ -47,6 +61,7 @@ export function registerRentMateSchedulingRoutes(app, d) {
     const title = text(req.body.title);
     if (!title) throw fail(400, 'Item name required (up to 150 characters)');
     const needed = timestamp(req.body.needed_at, 'needed_at');
+    requireFutureDate(needed, 'needed_at');
     const mins = reminder(req.body.reminder_minutes);
     const row = await one(`INSERT INTO groceries (household_id,created_by,title,needed_at,reminder_minutes)
       VALUES ($1,$2,$3,$4,$5) RETURNING *`, [t.household_id,req.user.id,title,needed,mins]);
@@ -57,6 +72,7 @@ export function registerRentMateSchedulingRoutes(app, d) {
     const title = text(req.body.title);
     if (!title) throw fail(400, 'Booking title required');
     const start = timestamp(req.body.starts_at, 'starts_at', true);
+    requireFutureDate(start, 'starts_at');
     const end = timestamp(req.body.ends_at, 'ends_at', true);
     if (Date.parse(end) <= Date.parse(start)) throw fail(400, 'End must be after start');
     const mins = reminder(req.body.reminder_minutes);
@@ -85,6 +101,7 @@ export function registerRentMateSchedulingRoutes(app, d) {
     const body = text(req.body.body, 3000);
     if (!title || !body) throw fail(400, 'Title and message required');
     const event = timestamp(req.body.event_at, 'event_at');
+    requireFutureDate(event, 'event_at');
     const mins = reminder(req.body.reminder_minutes);
     const row = await one(`INSERT INTO announcements (household_id,manager_id,title,body,event_at,reminder_minutes)
       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`, [t.household_id,t.manager_id,title,body,event,mins]);
@@ -103,6 +120,7 @@ export function registerRentMateSchedulingRoutes(app, d) {
     const body = text(req.body.body, 3000);
     if (!title || !body) throw fail(400, 'Title and message required');
     const event = timestamp(req.body.event_at, 'event_at');
+    requireFutureDate(event, 'event_at');
     const mins = reminder(req.body.reminder_minutes);
     const row = await one(`INSERT INTO announcements (household_id,manager_id,title,body,event_at,reminder_minutes)
       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`, [hid,mid,title,body,event,mins]);
@@ -118,6 +136,7 @@ export function registerRentMateSchedulingRoutes(app, d) {
     const title = text(req.body.title);
     if (!title) throw fail(400, 'Event title required');
     const start = timestamp(req.body.starts_at, 'starts_at', true);
+    requireFutureDate(start, 'starts_at');
     const end = timestamp(req.body.ends_at, 'ends_at');
     if (end && Date.parse(end) <= Date.parse(start)) throw fail(400, 'End must be after start');
     const mins = reminder(req.body.reminder_minutes);
