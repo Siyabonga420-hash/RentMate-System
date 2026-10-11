@@ -1,0 +1,5 @@
+services:
+  - type: web
+    name: rentmate-admin
+    runtime: static
+    staticPublishPath: .

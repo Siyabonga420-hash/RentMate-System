@@ -2288,6 +2288,14 @@ app.get(
 );
 
 // =====================================================
+
+// RENTMATE_UNIFIED_PORTAL
+app.use(
+    '/portal',
+    express.static(
+        path.join(dirname, 'rentmate-portal')
+    )
+);
 // 34. ERROR HANDLING
 // =====================================================
 

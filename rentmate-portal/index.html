@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RentMate | Management Portal</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #071d17, #123c2c, #0b241c);
+            color: #fff;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+        }
+        .card {
+            background: #fff;
+            color: #14241c;
+            padding: 40px;
+            border-radius: 20px;
+            width: min(440px, 92vw);
+            box-shadow: 0 25px 80px rgba(0,0,0,.25);
+        }
+        .brand {
+            font-size: 26px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        .brand span { color: #00813d; }
+        .muted { color: #6b7280; }
+        h1 { font-size: 26px; margin-top: 30px; }
+        label { display: block; margin-top: 18px; font-weight: bold; }
+        input, select {
+            width: 100%;
+            padding: 13px;
+            border: 1px solid #d1d5db;
+            border-radius: 9px;
+            margin-top: 7px;
+            font-size: 15px;
+        }
+        button {
+            width: 100%;
+            background: #00813d;
+            color: white;
+            padding: 14px;
+            border: 0;
+            border-radius: 9px;
+            font-size: 15px;
+            cursor: pointer;
+            margin-top: 25px;
+        }
+        button:hover { background: #006b32; }
+        #message { color: #b91c1c; margin-top: 15px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="brand">Rent<span>Mate</span></div>
+        <p class="muted">Property Management Platform</p>
+
+        <h1>Welcome back</h1>
+        <p class="muted">Sign in to your management workspace.</p>
+
+        <form id="loginForm">
+            <label>Account type
+                <select id="role" required>
+                    <option value="manager">Property Manager</option>
+                    <option value="admin">System Administrator</option>
+                </select>
+            </label>
+
+            <label>Email address
+                <input id="email" type="email" required autocomplete="username">
+            </label>
+
+            <label>Password
+                <input id="password" type="password" required autocomplete="current-password">
+            </label>
+
+            <button type="submit">Sign in</button>
+        </form>
+
+        <p id="message" role="alert"></p>
+    </div>
+
+    <script>
+        const form = document.getElementById('loginForm');
+        const message = document.getElementById('message');
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            message.textContent = '';
+
+            const role = document.getElementById('role').value;
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch('/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.detail || 'Login failed');
+                }
+
+                const token = result.access_token;
+
+                const meResponse = await fetch('/me', {
+                    headers: { Authorization: 'Bearer ' + token }
+                });
+
+                if (!meResponse.ok) {
+                    throw new Error('Unable to verify account role');
+                }
+
+                const user = await meResponse.json();
+
+                if (user.role !== role) {
+                    throw new Error('This account does not have the selected role.');
+                }
+
+                sessionStorage.setItem(
+                    role === 'admin'
+                        ? 'rentmate_admin_token'
+                        : 'rentmate_manager_token',
+                    token
+                );
+
+                window.location.href =
+                    role === 'admin'
+                        ? '/portal/admin/'
+                        : '/portal/manager/';
+
+            } catch (error) {
+                message.textContent = error.message;
+            }
+        });
+    </script>
+</body>
+</html>
