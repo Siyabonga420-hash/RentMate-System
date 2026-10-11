@@ -1,7 +1,10 @@
+﻿import { startRecurringRentService } from './rentmate-recurring-rent-service.js';
 import 'dotenv/config';
 
 import express from 'express';
 import { registerRentMateSchedulingRoutes } from './rentmate-scheduling.js';
+import { previewRecurringRentSchedule } from './rentmate-recurring-rent-scheduler.js';
+import { billingDueDate, billingMonthFromDate } from './rentmate-recurring-rent.js';
 import pg from 'pg';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -538,7 +541,7 @@ app.get(
         const r = await one(
             `SELECT
                 r.*,
-                coalesce(sum(p.amount),0) paid
+                coalesce(sum(p.amount) FILTER (WHERE LOWER(p.payment_method) <> 'demo'),0) paid
              FROM rent r
              LEFT JOIN payments p
                 ON p.rent_id=r.id
@@ -1090,10 +1093,31 @@ app.get(
         if (type === 'rent') {
 
             sql = `
-                SELECT *
-                FROM rent
-                WHERE tenant_id=$1
-                ORDER BY due_date DESC
+                SELECT
+                    r.*,
+                    COALESCE(p.amount_paid, 0) AS amount_paid,
+                    COALESCE(p.demo_amount_paid, 0) AS demo_amount_paid,
+                    GREATEST(
+                        0,
+                        r.amount_due - COALESCE(p.amount_paid, 0)
+                    ) AS outstanding
+                FROM rent r
+                LEFT JOIN (
+                    SELECT
+                        rent_id,
+                        SUM(amount) FILTER (
+                            WHERE LOWER(payment_method) <> 'demo'
+                        ) AS amount_paid,
+                        COALESCE(
+                            SUM(amount) FILTER (
+                                WHERE LOWER(payment_method) = 'demo'
+                            ), 0
+                        ) AS demo_amount_paid
+                    FROM payments
+                    GROUP BY rent_id
+                ) p ON p.rent_id = r.id
+                WHERE r.tenant_id=$1
+                ORDER BY r.due_date ASC, r.created_at ASC
             `;
 
             params = [t.id];
@@ -1327,6 +1351,219 @@ app.patch(
 // =====================================================
 // 20. MANAGER PORTFOLIO
 // =====================================================
+
+// RENTMATE RECURRING BILLING SETTINGS API
+// Requires sql/003_recurring_rent.sql before these endpoints are used.
+
+// RENTMATE RECURRING BILLING PREVIEW API
+// Read-only and strictly scoped to the authenticated manager.
+app.get(
+    '/manager/rent/recurring-preview',
+    authenticate,
+    roles('manager'),
+    wrap(async (req, res) => {
+        const id = await managerId(req);
+
+        const result = await q(
+            `SELECT
+                s.amount_due,
+                s.due_day,
+                s.use_month_end,
+                s.enabled,
+                COUNT(t.id)::integer AS active_tenants
+             FROM managers m
+             LEFT JOIN recurring_rent_settings s
+                ON s.manager_id = m.id
+             LEFT JOIN tenants t
+                ON t.manager_id = m.id
+                AND LOWER(t.status) = 'active'
+             WHERE m.id = $1
+             GROUP BY
+                m.id,
+                s.amount_due,
+                s.due_day,
+                s.use_month_end,
+                s.enabled`,
+            [id]
+        );
+
+        const row = result.rows[0];
+
+        if (!row) {
+            throw fail(404, 'Manager account not found.');
+        }
+
+        const today = new Intl.DateTimeFormat('sv-SE', {
+            timeZone: 'Africa/Johannesburg',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        }).format(new Date());
+
+        const billingMonth = billingMonthFromDate(
+            new Date(`${today}T12:00:00+02:00`)
+        );
+
+        const configured = row.amount_due !== null;
+
+        const amountDue = configured
+            ? Number(row.amount_due)
+            : 2500;
+
+        const dueDay = configured
+            ? Number(row.due_day)
+            : 31;
+
+        const useMonthEnd = configured
+            ? row.use_month_end
+            : true;
+
+        const dueDate = billingDueDate(
+            billingMonth,
+            dueDay,
+            useMonthEnd
+        );
+
+        const activeTenants = Number(row.active_tenants);
+
+        res.json({
+            configured,
+            enabled: configured && row.enabled === true,
+            billingMonth,
+            dueDate,
+            amountDue,
+            activeTenants,
+            estimatedTotal: amountDue * activeTenants,
+            eligible: today >= dueDate,
+            previewOnly: true,
+            message: configured
+                ? 'Recurring rent preview only. No charges have been created.'
+                : 'Showing default settings. Save your recurring rent configuration to customise them.'
+        });
+    })
+);
+app.get(
+    '/manager/rent/recurring-settings',
+    authenticate,
+    roles('manager'),
+    wrap(async (req, res) => {
+        const id = await managerId(req);
+
+        const settings = await one(
+            `SELECT
+                amount_due,
+                billing_frequency,
+                due_day,
+                use_month_end,
+                enabled,
+                updated_at
+             FROM recurring_rent_settings
+             WHERE manager_id = $1`,
+            [id]
+        );
+
+        res.json({
+            settings: settings || {
+                amount_due: 2500,
+                billing_frequency: 'monthly',
+                due_day: 31,
+                use_month_end: true,
+                enabled: false,
+                updated_at: null
+            },
+            configured: Boolean(settings)
+        });
+    })
+);
+
+app.put(
+    '/manager/rent/recurring-settings',
+    authenticate,
+    roles('manager'),
+    wrap(async (req, res) => {
+        const id = await managerId(req);
+
+        const {
+            amount_due,
+            due_day,
+            use_month_end,
+            enabled
+        } = req.body || {};
+
+        const amount = Number(amount_due);
+        const day = Number(due_day);
+
+        if (
+            !Number.isFinite(amount) ||
+            amount <= 0 ||
+            amount > 10000000 ||
+            !Number.isInteger(Math.round(amount * 100)) ||
+            Math.abs(amount * 100 - Math.round(amount * 100)) > 0.000001
+        ) {
+            throw fail(
+                400,
+                'Enter a valid monthly rent amount with at most two decimal places.'
+            );
+        }
+
+        if (!Number.isInteger(day) || day < 1 || day > 31) {
+            throw fail(
+                400,
+                'Billing day must be between 1 and 31.'
+            );
+        }
+
+        if (
+            typeof use_month_end !== 'boolean' ||
+            typeof enabled !== 'boolean'
+        ) {
+            throw fail(
+                400,
+                'Billing options must be true or false.'
+            );
+        }
+
+        const settings = await one(
+            `INSERT INTO recurring_rent_settings (
+                manager_id,
+                amount_due,
+                billing_frequency,
+                due_day,
+                use_month_end,
+                enabled
+             )
+             VALUES ($1, $2, 'monthly', $3, $4, $5)
+             ON CONFLICT (manager_id)
+             DO UPDATE SET
+                amount_due = EXCLUDED.amount_due,
+                due_day = EXCLUDED.due_day,
+                use_month_end = EXCLUDED.use_month_end,
+                enabled = EXCLUDED.enabled,
+                updated_at = now()
+             RETURNING
+                amount_due,
+                billing_frequency,
+                due_day,
+                use_month_end,
+                enabled,
+                updated_at`,
+            [
+                id,
+                amount,
+                day,
+                use_month_end,
+                enabled
+            ]
+        );
+
+        res.json({
+            message: 'Recurring rent settings saved.',
+            settings
+        });
+    })
+);
+
+// END RENTMATE RECURRING BILLING SETTINGS API
 
 app.get(
     '/manager/portfolio',
@@ -1750,6 +1987,289 @@ app.post(
 );
 
 // =====================================================
+
+// RENTMATE BULK MONTHLY RENT ENDPOINT
+// Creates charges for active tenants in the authenticated manager's portfolio.
+// Existing charges with the same tenant and due date are skipped.
+
+app.post(
+    '/manager/rent/bulk',
+    authenticate,
+    roles('manager'),
+    wrap(async (req, res) => {
+
+        const { amount_due, due_date } = req.body || {};
+
+        const amount = Number(amount_due);
+
+        if (
+            !Number.isFinite(amount) ||
+            amount <= 0 ||
+            amount > 9999999999.99 ||
+            Math.abs(amount * 100 - Math.round(amount * 100)) > 0.000001
+        ) {
+            throw fail(400, 'Enter a valid rent amount with up to two decimal places');
+        }
+
+        if (
+            typeof due_date !== 'string' ||
+            !/^\d{4}-\d{2}-\d{2}$/.test(due_date) ||
+            !Number.isFinite(Date.parse(due_date)) ||
+            new Date(due_date).toISOString().slice(0, 10) !== due_date
+        ) {
+            throw fail(400, 'Enter a valid YYYY-MM-DD due date');
+        }
+
+        const today = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Africa/Johannesburg',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        }).format(new Date());
+
+        if (due_date < today) {
+            throw fail(400, 'Rent due date cannot be in the past');
+        }
+
+        const mid = await managerId(req);
+        const client = await db.connect();
+
+        try {
+            await client.query('BEGIN');
+
+            const tenants = await client.query(
+                `SELECT id
+                 FROM tenants
+                 WHERE manager_id = $1
+                   AND lower(status) = 'active'
+                 ORDER BY id`,
+                [mid]
+            );
+
+            if (tenants.rows.length === 0) {
+                await client.query('COMMIT');
+
+                return res.json({
+                    message: 'No active tenants found',
+                    total_tenants: 0,
+                    created: 0,
+                    skipped: 0,
+                    amount_due: amount,
+                    due_date
+                });
+            }
+
+            const result = await client.query(
+                `INSERT INTO rent (
+                    tenant_id,
+                    amount_due,
+                    due_date
+                )
+                SELECT
+                    t.id,
+                    $2::numeric,
+                    $3::date
+                FROM tenants t
+                WHERE t.manager_id = $1
+                  AND lower(t.status) = 'active'
+                ON CONFLICT (tenant_id, due_date)
+                DO NOTHING
+                RETURNING id`,
+                [mid, amount, due_date]
+            );
+
+            await client.query('COMMIT');
+
+            const created = result.rowCount;
+            const skipped = tenants.rows.length - created;
+
+            res.status(201).json({
+                message: 'Bulk rent charging completed',
+                total_tenants: tenants.rows.length,
+                created,
+                skipped,
+                amount_due: amount,
+                due_date,
+                total_charged: Number((created * amount).toFixed(2))
+            });
+
+        } catch (error) {
+            await client.query('ROLLBACK');
+            throw error;
+        } finally {
+            client.release();
+        }
+    })
+);
+// RENTMATE TENANT DEMO PAYMENT ENDPOINT
+// DEVELOPMENT ONLY: No money is transferred.
+
+app.post(
+    '/my/payments/demo',
+    authenticate,
+    roles('tenant'),
+    wrap(async (req, res) => {
+
+        const { rent_id, amount, request_id } = req.body || {};
+
+        if (!uuid(rent_id) || !uuid(request_id)) {
+            throw fail(400, 'Valid rent and request IDs are required');
+        }
+
+        const amountText = String(amount ?? '');
+
+        if (!/^\d+(\.\d{1,2})?$/.test(amountText)) {
+            throw fail(400, 'Enter a valid amount with up to two decimal places');
+        }
+
+        const amountCents = Math.round(Number(amountText) * 100);
+
+        if (!Number.isSafeInteger(amountCents) || amountCents <= 0) {
+            throw fail(400, 'Payment amount must be greater than zero');
+        }
+
+        const currentTenant = await tenant(req);
+
+        if (!currentTenant) {
+            throw fail(403, 'Tenant account not found');
+        }
+
+        const reference = `DEMO-${request_id}`;
+
+        const client = await db.connect();
+
+        try {
+            await client.query('BEGIN');
+
+            // Lock the rent charge to prevent concurrent overpayment.
+            const rentResult = await client.query(
+                `SELECT id, tenant_id, amount_due
+                 FROM rent
+                 WHERE id=$1 AND tenant_id=$2
+                 FOR UPDATE`,
+                [rent_id, currentTenant.id]
+            );
+
+            const rentCharge = rentResult.rows[0];
+
+            if (!rentCharge) {
+                throw fail(403, 'Rent charge not found for this tenant');
+            }
+
+            // A repeated request must not record a second payment.
+            const previous = await client.query(
+                `SELECT *
+                 FROM payments
+                 WHERE reference=$1`,
+                [reference]
+            );
+
+            if (previous.rows.length > 0) {
+                const payment = previous.rows[0];
+
+                if (
+                    payment.rent_id !== rent_id ||
+                    payment.tenant_id !== currentTenant.id ||
+                    Math.round(Number(payment.amount) * 100) !== amountCents
+                ) {
+                    throw fail(409, 'Request ID was already used for another payment');
+                }
+
+                await client.query('COMMIT');
+
+                return res.json({
+                    simulated: true,
+                    duplicate: true,
+                    message: 'Demo payment was already recorded.',
+                    payment
+                });
+            }
+
+            const totals = await client.query(
+                `SELECT
+                    COALESCE(
+                        SUM(amount) FILTER (
+                            WHERE LOWER(payment_method) <> 'demo'
+                        ), 0
+                    ) AS paid,
+                    COALESCE(
+                        SUM(amount) FILTER (
+                            WHERE LOWER(payment_method) = 'demo'
+                        ), 0
+                    ) AS demo_paid
+                 FROM payments
+                 WHERE rent_id=$1`,
+                [rent_id]
+            );
+
+            const dueCents = Math.round(
+                Number(rentCharge.amount_due) * 100
+            );
+
+            const paidCents = Math.round(
+                Number(totals.rows[0].paid) * 100
+            );
+
+            const demoPaidCents = Math.round(
+                Number(totals.rows[0].demo_paid) * 100
+            );
+
+            const outstandingCents = Math.max(
+                0,
+                dueCents - paidCents - demoPaidCents
+            );
+
+            if (amountCents > outstandingCents) {
+                throw fail(
+                    400,
+                    'Demo payment exceeds the outstanding rent balance'
+                );
+            }
+
+            const inserted = await client.query(
+                `INSERT INTO payments(
+                    rent_id,
+                    tenant_id,
+                    amount,
+                    payment_method,
+                    reference
+                 )
+                 VALUES($1,$2,$3,'demo',$4)
+                 RETURNING *`,
+                [
+                    rent_id,
+                    currentTenant.id,
+                    (amountCents / 100).toFixed(2),
+                    reference
+                ]
+            );
+
+            // RENTMATE DEMO PAYMENT ISOLATION
+            // Demo payments must never change actual rent status.
+
+            const remainingCents =
+                outstandingCents - amountCents;
+
+            await client.query('COMMIT');
+
+            return res.status(201).json({
+                simulated: true,
+                duplicate: false,
+                message: 'Demo payment recorded. No real money was transferred.',
+                payment: inserted.rows[0],
+                outstanding: remainingCents / 100
+            });
+
+        } catch (error) {
+            await client.query('ROLLBACK');
+            throw error;
+        } finally {
+            client.release();
+        }
+    })
+);
+
+// END RENTMATE TENANT DEMO PAYMENT ENDPOINT
 // 27. RECORD TENANT PAYMENT
 // =====================================================
 
@@ -1768,6 +2288,15 @@ app.post(
             payment_method = 'manual',
             reference
         } = req.body;
+
+        if (
+            String(payment_method).trim().toLowerCase() === 'demo'
+        ) {
+            throw fail(
+                400,
+                'Simulated payments cannot be recorded as verified payments'
+            );
+        }
 
         const mid = await managerId(req);
 
@@ -1836,7 +2365,8 @@ app.post(
                             0
                         )::numeric AS paid
                      FROM payments
-                     WHERE rent_id=$1`,
+                     WHERE rent_id=$1
+                       AND LOWER(payment_method) <> 'demo'`,
                     [rent_id]
                 )
             ).rows[0];
@@ -2345,5 +2875,7 @@ app.listen(
         console.log(
             'RentMate API listening'
         );
+
+        startRecurringRentService(db);
     }
 );

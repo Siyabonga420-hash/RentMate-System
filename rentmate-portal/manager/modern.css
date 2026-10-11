@@ -168,3 +168,333 @@ th, td {
     border-top: 1px solid #e4ebe7;
     margin: 26px 0;
 }
+
+
+/* RENTMATE ACCESSIBILITY CONTRAST FIX */
+
+:root {
+    --rm-text-primary: #142b25;
+    --rm-text-secondary: #40594f;
+    --rm-text-muted: #566b62;
+}
+
+/* Main content */
+
+main,
+.card,
+.panel,
+section {
+    color: var(--rm-text-primary);
+}
+
+.card h1,
+.card h2,
+.card h3,
+section h1,
+section h2,
+section h3 {
+    color: #102b22;
+}
+
+/* Form labels */
+
+label,
+.card label,
+form label {
+    color: #29483b !important;
+    font-weight: 600;
+}
+
+/* Inputs */
+
+input,
+select,
+textarea,
+.card input,
+.card select,
+.card textarea {
+    color: #ffffff !important;
+    background-color: #101923 !important;
+    border: 1px solid #536578 !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: #c1ccd8 !important;
+    opacity: 1;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    outline: 2px solid #159b67;
+    outline-offset: 1px;
+}
+
+/* Tables */
+
+table {
+    color: #18372b !important;
+}
+
+table thead th,
+table th {
+    color: #294f40 !important;
+    font-weight: 700 !important;
+}
+
+table tbody td,
+table td {
+    color: #253f35 !important;
+    opacity: 1 !important;
+}
+
+table tbody tr {
+    background-color: #ffffff;
+}
+
+table tbody tr:nth-child(even) {
+    background-color: #f2f8f5;
+}
+
+table tbody tr:hover {
+    background-color: #e5f4ec;
+}
+
+/* Dashboard metrics */
+
+.metric,
+.metric b,
+.metric span {
+    color: #183b2c !important;
+}
+
+/* Descriptions */
+
+.card p,
+.card small,
+.card .description {
+    color: var(--rm-text-secondary);
+}
+
+/* Status messages */
+
+#message,
+#managerCreationMessage {
+    color: #176a46 !important;
+    font-weight: 600;
+}
+
+/* Accessibility */
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible {
+    outline: 3px solid #18a76b;
+    outline-offset: 3px;
+}
+
+
+/* RENTMATE BUTTON LOADING STATES */
+
+button[data-rm-loading="true"] {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    opacity: .78;
+    cursor: wait !important;
+    pointer-events: none;
+}
+
+.rm-spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: rm-spin .7s linear infinite;
+}
+
+@keyframes rm-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .rm-spinner {
+        animation-duration: 1.8s;
+    }
+}
+
+/* RENTMATE BULK RENT BILLING */
+
+.rm-bulk-rent {
+    margin-bottom: 24px;
+}
+
+.rm-bulk-rent form {
+    display: grid;
+    gap: 16px;
+}
+
+.rm-bulk-rent button {
+    cursor: pointer;
+}
+
+#bulkRentPreview {
+    margin-top: 18px;
+    padding: 16px;
+    background: #eaf8ef;
+    color: #174b32;
+    border-radius: 10px;
+    font-weight: 600;
+}
+
+#bulkRentPreview:empty {
+    display: none;
+}
+
+/* RENTMATE BULK CONFIRM BUTTON */
+
+#confirmBulkRent {
+    margin-top: 12px;
+    padding: 12px 20px;
+    border-radius: 10px;
+    background: #16794f;
+    color: white;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+}
+
+#confirmBulkRent:hover {
+    background: #10613e;
+}
+
+#confirmBulkRent:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+/* KEEP BULK CONFIRM BUTTON HIDDEN UNTIL PREVIEW */
+
+#confirmBulkRent[hidden] {
+    display: none !important;
+}
+
+/* RENTMATE RECURRING RENT SETTINGS */
+.recurring-rent-settings {
+    margin-bottom: 24px;
+}
+
+.recurring-rent-settings h2 {
+    margin-top: 8px;
+}
+
+.recurring-rent-settings .grid {
+    margin-top: 18px;
+}
+
+.recurring-toggle {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 18px 0;
+    font-weight: 600;
+}
+
+.recurring-toggle input {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+#recurringRentMessage {
+    margin-top: 14px;
+    font-weight: 600;
+}
+
+#recurringRentDayWrapper[hidden] {
+    display: none !important;
+}
+/* END RENTMATE RECURRING RENT SETTINGS */
+
+/* RENTMATE RECURRING BILLING PREVIEW CARD */
+.rm-billing-preview {
+    padding: 24px;
+    margin-bottom: 24px;
+    border: 1px solid #dbe3ec;
+    border-radius: 16px;
+    background: #ffffff;
+    color: #172334;
+}
+
+.rm-billing-preview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.rm-billing-preview-header h3 {
+    margin: 0 0 6px;
+    color: #172334;
+}
+
+.rm-billing-preview-header p {
+    margin: 0;
+    color: #526174;
+}
+
+.rm-billing-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 18px;
+}
+
+.rm-billing-preview-grid > div {
+    padding: 16px;
+    background: #f3f6fa;
+    border-radius: 12px;
+}
+
+.rm-billing-preview-grid span {
+    display: block;
+    margin-bottom: 8px;
+    color: #526174;
+    font-size: 13px;
+}
+
+.rm-billing-preview-grid strong {
+    display: block;
+    color: #172334;
+    font-size: 19px;
+}
+
+.rm-billing-preview small,
+#recurringPreviewMessage {
+    color: #526174;
+}
+
+@media (max-width: 760px) {
+    .rm-billing-preview-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .rm-billing-preview-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+@media (max-width: 480px) {
+    .rm-billing-preview-grid {
+        grid-template-columns: 1fr;
+    }
+}

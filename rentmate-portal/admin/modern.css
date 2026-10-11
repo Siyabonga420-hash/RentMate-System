@@ -274,3 +274,163 @@ th, td {
         padding: 20px;
     }
 }
+
+/* RENTMATE ACCESSIBILITY CONTRAST FIX */
+
+:root {
+    --rm-text-primary: #142b25;
+    --rm-text-secondary: #40594f;
+    --rm-text-muted: #566b62;
+}
+
+/* Main content */
+
+main,
+.card,
+.panel,
+section {
+    color: var(--rm-text-primary);
+}
+
+.card h1,
+.card h2,
+.card h3,
+section h1,
+section h2,
+section h3 {
+    color: #102b22;
+}
+
+/* Form labels */
+
+label,
+.card label,
+form label {
+    color: #29483b !important;
+    font-weight: 600;
+}
+
+/* Inputs */
+
+input,
+select,
+textarea,
+.card input,
+.card select,
+.card textarea {
+    color: #ffffff !important;
+    background-color: #101923 !important;
+    border: 1px solid #536578 !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: #c1ccd8 !important;
+    opacity: 1;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    outline: 2px solid #159b67;
+    outline-offset: 1px;
+}
+
+/* Tables */
+
+table {
+    color: #18372b !important;
+}
+
+table thead th,
+table th {
+    color: #294f40 !important;
+    font-weight: 700 !important;
+}
+
+table tbody td,
+table td {
+    color: #253f35 !important;
+    opacity: 1 !important;
+}
+
+table tbody tr {
+    background-color: #ffffff;
+}
+
+table tbody tr:nth-child(even) {
+    background-color: #f2f8f5;
+}
+
+table tbody tr:hover {
+    background-color: #e5f4ec;
+}
+
+/* Dashboard metrics */
+
+.metric,
+.metric b,
+.metric span {
+    color: #183b2c !important;
+}
+
+/* Descriptions */
+
+.card p,
+.card small,
+.card .description {
+    color: var(--rm-text-secondary);
+}
+
+/* Status messages */
+
+#message,
+#managerCreationMessage {
+    color: #176a46 !important;
+    font-weight: 600;
+}
+
+/* Accessibility */
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible {
+    outline: 3px solid #18a76b;
+    outline-offset: 3px;
+}
+
+
+/* RENTMATE BUTTON LOADING STATES */
+
+button[data-rm-loading="true"] {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    opacity: .78;
+    cursor: wait !important;
+    pointer-events: none;
+}
+
+.rm-spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: rm-spin .7s linear infinite;
+}
+
+@keyframes rm-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .rm-spinner {
+        animation-duration: 1.8s;
+    }
+}

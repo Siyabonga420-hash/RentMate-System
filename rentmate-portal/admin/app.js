@@ -3,7 +3,32 @@ async function api(path,method='GET',data){const r=await fetch(path,{method,head
 function row(id,values){const tr=document.createElement('tr');for(const v of values){const td=document.createElement('td');td.textContent=v??'—';tr.append(td)}$(id).append(tr)}function empty(id,n){if(!$(id).children.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=n;td.textContent='No records';tr.append(td);$(id).append(tr)}}
 async function refresh(){try{$('message').textContent='Loading…';const {managers,properties,tenants,units,rents,payments}=await api('/admin/overview');const due=rents.reduce((a,r)=>a+Number(r.amount_due),0),paid=payments.reduce((a,p)=>a+Number(p.amount),0);$('metrics').replaceChildren();for(const [label,value] of [['Managers',managers.length],['Properties',properties.length],['Units',units.length],['Tenants',tenants.length],['Outstanding',money(due-paid)]]){const d=document.createElement('div');d.className='metric';const b=document.createElement('b');b.textContent=value;const s=document.createElement('span');s.textContent=label;d.append(b,s);$('metrics').append(d)}for(const id of ['managers','properties','tenants','rentBody'])$(id).replaceChildren();managers.forEach(m=>row('managers',[m.business_name,m.status,String(m.created_at).slice(0,10)]));properties.forEach(p=>row('properties',[p.property_name,p.address,managers.find(m=>m.id===p.manager_id)?.business_name||p.manager_id]));tenants.forEach(t=>row('tenants',[t.full_name,t.email,t.status]));rents.forEach(r=>{const sum=payments.filter(p=>p.rent_id===r.id).reduce((a,p)=>a+Number(p.amount),0);row('rentBody',[tenants.find(t=>t.id===r.tenant_id)?.full_name||r.tenant_id,String(r.due_date).slice(0,10),money(r.amount_due),money(sum),money(Number(r.amount_due)-sum),r.status])});for(const [id,n] of [['managers',3],['properties',3],['tenants',3],['rentBody',6]])empty(id,n);$('message').textContent='Data refreshed.'}catch(e){$('message').textContent=e.message}}
 async function init(){if(!token){$('loginPanel').hidden=false;$('app').hidden=true;$('logout').hidden=true;return}try{const me=await api('/me');if(me.role!=='admin')throw Error('Administrator role required');$('who').textContent=me.full_name;$('loginPanel').hidden=true;$('app').hidden=false;$('logout').hidden=false;await refresh()}catch(e){$('loginMessage').textContent=e.message;token=null;sessionStorage.removeItem('rentmate_admin_token');$('app').hidden=true;$('loginPanel').hidden=false;$('logout').hidden=true}}
-$('loginForm').onsubmit=async e=>{e.preventDefault();try{const result=await api('/auth/login','POST',{email:$('email').value.trim(),password:$('password').value});token=result.access_token;sessionStorage.setItem('rentmate_admin_token',token);await init()}catch(x){$('loginMessage').textContent=x.message}};$('logout').onclick=()=>{token=null;sessionStorage.removeItem('rentmate_admin_token');window.location.replace('/portal/')};$('refresh').onclick=refresh;init();
+$('loginForm').onsubmit=async e=>{
+    e.preventDefault();
+
+    const button=e.target.querySelector('button[type="submit"],button:not([type])');
+
+    const operation=async()=>{
+        try{
+            const result=await api('/auth/login','POST',{
+                email:$('email').value.trim(),
+                password:$('password').value
+            });
+
+            token=result.access_token;
+            sessionStorage.setItem('rentmate_admin_token',token);
+            await init();
+        }catch(x){
+            $('loginMessage').textContent=x.message;
+        }
+    };
+
+    if(window.RentMateLoading){
+        await window.RentMateLoading.run(button,operation);
+    }else{
+        await operation();
+    }
+};$('logout').onclick=()=>{token=null;sessionStorage.removeItem('rentmate_admin_token');window.location.replace('/portal/')};$('refresh').onclick=refresh;init();
 
 
 /* RENTMATE ADMIN MANAGER REGISTRATION */
