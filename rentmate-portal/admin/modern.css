@@ -1,0 +1,276 @@
+:root {
+    --rm-green: #087f4c;
+    --rm-dark: #10382b;
+    --rm-light: #f4f8f6;
+    --rm-border: #e4ebe7;
+}
+
+body {
+    background: var(--rm-light);
+    color: #17372b;
+}
+
+header {
+    background: #ffffff;
+    border-bottom: 1px solid var(--rm-border);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, .025);
+    position: sticky;
+    top: 0;
+    z-index: 20;
+}
+
+main {
+    max-width: 1450px;
+    margin: auto;
+    padding: 28px;
+}
+
+.intro.rentmate-modern-manager {
+    background: linear-gradient(125deg, #064d34, #0a8454, #47b98b);
+    border-radius: 22px;
+    padding: 38px;
+    color: white;
+    box-shadow: 0 15px 40px rgba(8, 127, 76, .16);
+}
+
+.intro.rentmate-modern-manager h1,
+.intro.rentmate-modern-manager p,
+.intro.rentmate-modern-manager .eyebrow {
+    color: white;
+}
+
+.metrics {
+    margin-top: 26px;
+    gap: 18px;
+}
+
+.metric {
+    background: white;
+    border: 1px solid var(--rm-border);
+    border-radius: 18px;
+    padding: 25px;
+    box-shadow: 0 8px 25px rgba(12, 51, 35, .035);
+}
+
+.metric b {
+    color: var(--rm-dark);
+    font-size: 29px;
+}
+
+.card {
+    background: white;
+    border: 1px solid var(--rm-border);
+    border-radius: 18px;
+    box-shadow: 0 8px 25px rgba(12, 51, 35, .035);
+}
+
+.tabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    background: white;
+    border: 1px solid var(--rm-border);
+    padding: 8px;
+    border-radius: 15px;
+    margin: 26px 0;
+}
+
+.tabs button {
+    border-radius: 10px;
+    background: transparent;
+    color: #496357;
+}
+
+.tabs button.active {
+    background: linear-gradient(125deg, #087f4c, #12a76c);
+    color: white;
+}
+
+button:not(.secondary) {
+    border-radius: 10px;
+}
+
+input, select {
+    border-radius: 9px;
+    border: 1px solid #dce5df;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th {
+    background: #f5f9f7;
+    color: #496357;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+}
+
+th, td {
+    padding: 14px;
+    border-bottom: 1px solid #edf1ee;
+}
+
+@media (max-width: 700px) {
+    main {
+        padding: 14px;
+    }
+
+    .intro.rentmate-modern-manager {
+        padding: 24px;
+    }
+
+    .metric b {
+        font-size: 23px;
+    }
+}
+.household-heading {
+    margin: 28px 0 20px;
+}
+
+.household-heading h2 {
+    font-size: 24px;
+    color: #10382b;
+}
+
+.household-heading p {
+    color: #6b7d72;
+}
+
+#householdTools > section {
+    max-width: none !important;
+    padding: 0 !important;
+}
+
+#householdTools form {
+    background: white;
+    border: 1px solid #e4ebe7;
+    padding: 24px;
+    border-radius: 18px;
+    margin-top: 20px;
+    box-shadow: 0 8px 25px rgba(12, 51, 35, .035);
+}
+
+#householdTools input,
+#householdTools select {
+    padding: 12px;
+    margin: 8px 8px 8px 0;
+}
+
+#householdTools button {
+    padding: 12px 18px;
+}
+
+#householdTools hr {
+    border: 0;
+    border-top: 1px solid #e4ebe7;
+    margin: 26px 0;
+}
+
+/* System Administrator Dashboard */
+
+.intro.rentmate-modern-manager {
+    background: linear-gradient(125deg, #073b31, #087f4c, #2fae85);
+}
+
+#metrics {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+#managers tr:hover,
+#properties tr:hover,
+#tenants tr:hover,
+#rentBody tr:hover {
+    background: #f6faf8;
+}
+
+#message {
+    margin: 24px 0;
+    font-weight: 500;
+}
+
+
+/* RENTMATE ADMIN MANAGER REGISTRATION */
+
+.manager-registration {
+    margin: 26px 0;
+    padding: 28px;
+}
+
+.registration-header {
+    margin-bottom: 24px;
+}
+
+.registration-header h2 {
+    margin: 8px 0;
+    font-size: 24px;
+    color: #10382b;
+}
+
+.registration-header p {
+    color: #6b7d72;
+}
+
+.registration-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+}
+
+.registration-grid label {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    font-weight: 600;
+    color: #294b3c;
+}
+
+.registration-grid input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 13px;
+    background: #fbfdfc;
+}
+
+.registration-grid input:focus {
+    outline: 2px solid #13a66d;
+    outline-offset: 1px;
+}
+
+.registration-actions {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin-top: 25px;
+}
+
+.registration-actions button {
+    padding: 13px 22px;
+    background: #087f4c;
+    color: white;
+    border: 0;
+    cursor: pointer;
+}
+
+.registration-actions button:disabled {
+    opacity: .6;
+    cursor: wait;
+}
+
+#managerCreationMessage {
+    margin: 0;
+    font-weight: 500;
+}
+
+@media (max-width: 700px) {
+    .registration-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .manager-registration {
+        padding: 20px;
+    }
+}
